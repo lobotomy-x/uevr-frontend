@@ -15,10 +15,10 @@
         SizeToContent="WidthAndHeight" ResizeMode="NoResize" Icon="/UEVR2.png"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
-        Title="Prompt" Height="200" Width="400">
+        Title="Prompt" Height="200" Width="400" Topmost="True" ForceCursor="True">
     <Border BorderBrush="#FF3D3D40" BorderThickness="2">
-        <StackPanel>
-            <Border MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="#FF1A1B1C">
+        <StackPanel KeyDown="shift_KeyDown" KeyUp="shift_KeyUp">
+            <Border MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="#FF1A1B1C" KeyDown="shift_KeyDown" KeyUp="shift_KeyUp">
                 <Border.Style>
                     <Style TargetType="{x:Type Border}">
                         <Setter Property="Cursor" Value="Hand"/>
@@ -29,18 +29,18 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <DockPanel Height="30">
-                    <TextBlock Text="{Binding Title, RelativeSource={RelativeSource FindAncestor, AncestorType=Window}}"
+                <DockPanel Height="30" KeyDown="shift_KeyDown" KeyUp="shift_KeyUp">
+                    <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type Window}, Mode=FindAncestor}}"
                        VerticalAlignment="Center"
                        Margin="25,0,0,0"
                        FontWeight="Bold"
                        Foreground="White" />
                 </DockPanel>
             </Border>
-            <TextBlock x:Name="m_dialogText" Margin="10" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10">
-                <Button x:Name="btnYes" Content="Yes" Width="75" Margin="5" Click="btnYes_Click" />
-                <Button x:Name="btnNo" Content="No" Width="75" Margin="5" Click="btnNo_Click" />
+            <TextBlock x:Name="m_dialogText" Margin="12" />
+            <StackPanel Orientation="Horizontal" Margin="10" HorizontalAlignment="Right" MinWidth="169" >
+                <Button x:Name="btnYes" Content="Yes" Margin="5" Click="btnYes_Click" KeyDown="shift_KeyDown" KeyUp="shift_KeyUp" HorizontalContentAlignment="Center" MinWidth="75" />
+                <Button x:Name="btnNo" Content="No" Margin="5" Click="btnNo_Click" KeyDown="shift_KeyDown" KeyUp="shift_KeyUp" MinWidth="75" />
             </StackPanel>
         </StackPanel>
     </Border>

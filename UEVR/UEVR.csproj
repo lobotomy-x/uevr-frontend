@@ -14,27 +14,52 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <PackageProjectUrl>https://github.com/praydog/uevr-frontend</PackageProjectUrl>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+    <AnalysisLevel>6.0-all</AnalysisLevel>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <Optimize>True</Optimize>
+    <DebugType>embedded</DebugType>
+    <WarningLevel>9999</WarningLevel>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>embedded</DebugType>
+    <WarningLevel>9999</WarningLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ExecutableFilter.cs" />
+    <Compile Remove="UpdateStatusView.xaml.cs" />
+    <Compile Remove="VersionSelector.xaml.cs" />
+    <Compile Remove="VersionSelectorControl.xaml.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="discord.png" />
     <None Remove="donate.png" />
     <None Remove="FilteredExecutables.json" />
     <None Remove="github.png" />
+    <None Remove="hash_executables.py" />
+    <None Remove="MainWindow.xaml.cs.2.txt" />
+    <None Remove="MainWindow.xaml_NEW.txt" />
+    <None Remove="PlainTextFilteredExecutables.json" />
     <None Remove="UEVR.png" />
     <None Remove="UEVR2.png" />
+    <None Remove="Utils.cs.2.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Remove="UpdateStatusView.xaml" />
+    <Page Remove="VersionSelector.xaml" />
+    <Page Remove="VersionSelectorControl.xaml" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="uevr.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="FilteredExecutables.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,6 +68,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Ini" Version="7.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
+    <PackageReference Include="System.Management" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,16 +79,24 @@
     <Resource Include="UEVR2.png" />
   </ItemGroup>
 
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="python hash_executables.py" />
-  </Target>
-
   <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Update="Properties\Settings.Designer.cs">
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <AutoGen>True</AutoGen>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

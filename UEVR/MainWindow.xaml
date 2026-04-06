@@ -15,13 +15,24 @@
         mc:Ignorable="d"
         Title="UEVR"
         Closing="MainWindow_Closing" Loaded="MainWindow_Loaded"
-        SizeToContent="WidthAndHeight" ResizeMode="NoResize" Icon="/UEVR2.png"
+        SizeToContent="WidthAndHeight" ResizeMode="CanMinimize" Icon="/UEVR2.png"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="None"
+        WindowStyle="None" AllowDrop="True"
+        Drop="MainWindow_Drop"  
+        GotKeyboardFocus="MainWindow_GotKeyboardFocus"
+        GotMouseCapture="MainWindow_GotMouseCapture"
+        LostFocus="MainWindow_LostFocus"
+        LostMouseCapture="MainWindow_LostMouseCapture"
+        MouseLeftButtonDown="MainWindow_LeftButtonDown"
+        MouseLeftButtonUp="MainWindow_LeftButtonUp"
+        MouseMove="MainWindow_MouseMove"
+        PreviewDragEnter="MainWindow_PreviewDragEnter"
+        PreviewDragOver="MainWindow_PreviewDragOver"
+        PreviewDrop="MainWindow_PreviewDrop" GotFocus="MainWindow_GotFocus" Activated="MainWindow_Activated" IsVisibleChanged="MainWindow_IsVisibleChanged" LayoutUpdated="MainWindow_LayoutUpdated"
         >
     <StackPanel x:Name="m_vertStackPanel" Orientation="Vertical">
 
-        <Border MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="#FF1A1B1C">
+        <Border MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="#FF1A1B1C" MouseMove="MainWindow_MouseMove">
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
                     <Setter Property="Cursor" Value="Hand"/>
@@ -32,27 +43,57 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <DockPanel Height="30">
-                <TextBlock Text="{Binding Title, RelativeSource={RelativeSource FindAncestor, AncestorType=Window}}"
-                       VerticalAlignment="Center"
-                       Margin="25,0,0,0"
-                       FontWeight="Bold"
-                       Foreground="White" />
-                <Button DockPanel.Dock="Right"
-                    Click="CloseButton_Click"
-                    Width="30"
-                    Height="30"
-                    Background="Transparent"
-                    BorderBrush="Transparent"
-                    HorizontalAlignment="Right"
-                    Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
-                >
-                    <materialDesign:PackIcon Kind="Close" HorizontalAlignment="Center" Height="30" Width="30" />
-                </Button>
-            </DockPanel>
+            <StackPanel Orientation="Horizontal" d:LayoutOverrides="TopPosition, BottomPosition" Width="500" HorizontalAlignment="Right">
+                <DockPanel d:LayoutOverrides="TopPosition, BottomPosition" Height="30" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" MouseLeftButtonUp="TitleBar_MouseLeftButtonUp">
+                    <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType={x:Type Window}, Mode=FindAncestor}}" FontWeight="Bold" Foreground="White" Background="{DynamicResource MaterialDesign.Brush.Chip.Background}" Width="355" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="0,0,30,0" RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform/>
+                                <SkewTransform/>
+                                <RotateTransform/>
+                                <TranslateTransform X="6"/>
+                            </TransformGroup>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                </DockPanel>
+                <DockPanel x:Name="m_windowControlsDockPanel" Width="130" d:LayoutOverrides="TopPosition, BottomPosition" Height="30" HorizontalAlignment="Right">
+                    <Button x:Name="m_closeMainWindowBtn"
+Width="30" Style="{DynamicResource MaterialDesignFloatingActionMiniButton}" Height="30" HorizontalAlignment="Right" DockPanel.Dock="Right" Click="CloseButton_Click" BorderBrush="Transparent" Background="{x:Null}">
+                        <materialDesign:PackIcon
+    Width="30" Kind="Close" Height="30" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button x:Name="m_minimizeBtn"
+Width="30" Style="{DynamicResource MaterialDesignFloatingActionMiniButton}" Height="30" HorizontalAlignment="Right" DockPanel.Dock="Right" Click="MinimizeButton_Click" BorderBrush="Transparent" Background="{x:Null}">
+                        <materialDesign:PackIcon
+    Width="30" Kind="Minimize" Height="30" HorizontalAlignment="Center"/>
+                    </Button>
+                    <DockPanel x:Name="settingsDockPanel"
+Width="75" Margin="0,0,0,0" ForceCursor="True" Focusable="True" FlowDirection="RightToLeft" AllowDrop="True" Height="180">
+                        <StackPanel
+Width="118" Orientation="Horizontal" HorizontalAlignment="Left">
+                            <ToggleButton
+VerticalAlignment="Top" Width="35" ToolTip="Menu" Padding="0" x:Name="m_menuToggle" IsChecked="{Binding IsMenuOpen, Mode=TwoWay}" 
+Height="30" Cursor="Hand" BorderThickness="0" Style="{DynamicResource MaterialDesignFlatButton}" Foreground="{x:Null}">
+                                <materialDesign:PackIcon Width="25" Kind="HamburgerMenu" Height="25" Foreground="{DynamicResource MaterialDesignBody}"
+VerticalContentAlignment="Center" d:IsLocked="True"/>
+                            </ToggleButton>
+                            <Popup x:Name="m_settingsMenuPopup" SnapsToDevicePixels="True" 
+PlacementTarget="{Binding ElementName=m_menuToggle}" PopupAnimation="Fade" Placement="Bottom" IsOpen="{Binding IsMenuOpen, Mode=TwoWay}"
+ Focusable="True" AllowsTransparency="True" StaysOpen="False" FlowDirection="LeftToRight" RenderTransformOrigin="1,1">
+                                <Border
+SnapsToDevicePixels="False" Padding="6" BorderThickness="1" BorderBrush="{DynamicResource MaterialDesign.Brush.Primary.Dark}">
+                                    <local:MainWindowSettingsMenu x:Name="m_mainWindowSettingsMenu" 
+DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType={x:Type Popup}}}" 
+Focusable="True" IsTabStop="True" ForceCursor="True" Cursor="Hand"/>
+                                </Border>
+                            </Popup>
+                        </StackPanel>
+                    </DockPanel>
+                </DockPanel>
+            </StackPanel>
         </Border>
         <StackPanel x:Name="m_sideStackPanel" Orientation="Horizontal">
-            <DockPanel>
+            <DockPanel MouseMove="MainWindow_MouseMove">
                 <Menu DockPanel.Dock="Top" HorizontalAlignment="Center">
                     <Menu.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -80,6 +121,14 @@
                                 <materialDesign:PackIcon Kind="Folder" HorizontalAlignment="Center" Height="30" Width="30">
                                 </materialDesign:PackIcon>
                                 <TextBlock Text="Open Global Dir" HorizontalAlignment="Center" FontSize="10"/>
+                            </StackPanel>
+                        </MenuItem.Header>
+                    </MenuItem>
+                    <MenuItem Visibility="Collapsed" x:Name="m_openProfileDirectoryBtn" Click="OpenProfileDir_Clicked">
+                        <MenuItem.Header>
+                            <StackPanel Width="75">
+                                <materialDesign:PackIcon Kind="Folder" HorizontalAlignment="Center" Height="30" Width="30"/>
+                                <TextBlock Text="Open Profile Dir" HorizontalAlignment="Center" FontSize="10"/>
                             </StackPanel>
                         </MenuItem.Header>
                     </MenuItem>
@@ -134,15 +183,16 @@
                     </Button>
                 </StackPanel>
             </DockPanel>
-            <StackPanel x:Name="m_topStackPanel" Orientation="Vertical">
+            <StackPanel x:Name="m_topStackPanel" Orientation="Vertical" MouseMove="MainWindow_MouseMove">
                 <GroupBox x:Name="m_nNotificationsGroupBox" Header="Notifications" ClipToBounds="True" Visibility="Collapsed">
                     <StackPanel>
                         <TextBlock x:Name="m_adminExplanation" TextWrapping="Wrap" Text="Some executables may not show up or fail to inject unless started as Administrator." Visibility="Collapsed"/>
+                        <TextBlock x:Name="m_updateStatus" TextWrapping="Wrap" Text="Update Complete." Visibility="Collapsed"/>
                         <Button x:Name="m_restartAsAdminButton" Content="Restart as Administrator" Click="RestartAsAdminButton_Click" Visibility="Collapsed"/>
                     </StackPanel>
                 </GroupBox>
                 <StackPanel Orientation="Horizontal">
-                    <GroupBox Header="Inject" ClipToBounds="True">
+                    <GroupBox Header="Inject" ClipToBounds="True" MouseMove="MainWindow_MouseMove">
                         <StackPanel ClipToBounds="True" HorizontalAlignment="Left">
                             <ComboBox x:Name="m_processListBox" DropDownOpened="ComboBox_DropDownOpened" SelectionChanged="ComboBox_SelectionChanged" VerticalAlignment="Top" MinWidth="500"/>
                             <Button x:Name="m_injectButton" Content="Inject" Click="Inject_Clicked"/>
@@ -162,7 +212,7 @@
                         </StackPanel>
                     </GroupBox>
                 </StackPanel>
-                <GroupBox Header="Game Settings" ClipToBounds="True">
+                <GroupBox Header="Game Settings" ClipToBounds="True" MouseMove="MainWindow_MouseMove">
                     <ListView x:Name="m_iniListView" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" MaxHeight="640">
                         <ListView.Resources>
                             <DataTemplate x:Key="ComboBoxTemplate">

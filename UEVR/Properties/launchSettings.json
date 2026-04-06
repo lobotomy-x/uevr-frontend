@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "UEVR": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

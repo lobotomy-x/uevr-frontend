@@ -12,7 +12,7 @@ namespace UEVR.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.8.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "18.5.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -20,6 +20,90 @@ namespace UEVR.Properties {
         public static Settings Default {
             get {
                 return defaultInstance;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("12:00:00")]
+        public global::System.TimeSpan UpdateCheckFrequency {
+            get {
+                return ((global::System.TimeSpan)(this["UpdateCheckFrequency"]));
+            }
+            set {
+                this["UpdateCheckFrequency"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2026-01-01")]
+        public global::System.DateTime LastUpdated {
+            get {
+                return ((global::System.DateTime)(this["LastUpdated"]));
+            }
+            set {
+                this["LastUpdated"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool IntroducedAutoInjectFeature {
+            get {
+                return ((bool)(this["IntroducedAutoInjectFeature"]));
+            }
+            set {
+                this["IntroducedAutoInjectFeature"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool IntroducedUpdateFeature {
+            get {
+                return ((bool)(this["IntroducedUpdateFeature"]));
+            }
+            set {
+                this["IntroducedUpdateFeature"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AutoInjectAlways {
+            get {
+                return ((bool)(this["AutoInjectAlways"]));
+            }
+            set {
+                this["AutoInjectAlways"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AutomaticNightlyUpdates {
+            get {
+                return ((bool)(this["AutomaticNightlyUpdates"]));
+            }
+            set {
+                this["AutomaticNightlyUpdates"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AutomaticInjection {
+            get {
+                return ((bool)(this["AutomaticInjection"]));
+            }
+            set {
+                this["AutomaticInjection"] = value;
             }
         }
     }

@@ -36,8 +36,8 @@
                        Foreground="White" />
                 </DockPanel>
             </Border>
-            <TextBlock Text="Virtual Desktop has been detected running.&#x0a;Make sure you use OpenXR for the least issues." Margin="10" />
-            <CheckBox x:Name="chkHideWarning" Content="Hide future warnings" Margin="10" />
+            <TextBlock x:Name="m_textBoxVD" Text="Virtual Desktop has been detected running.&#x0a;Make sure you use OpenXR for the least issues." Margin="10" />
+            <CheckBox x:Name="chkHideWarning" Content="Hide future warnings" Margin="10" Checked="chkHideWarning_Checked" Unchecked="chkHideWarning_Unchecked" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10">
                 <Button x:Name="btnOK" Content="OK" Width="75" Margin="5" Click="btnOK_Click" />
             </StackPanel>

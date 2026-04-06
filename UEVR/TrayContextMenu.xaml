@@ -1,0 +1,80 @@
+﻿<Window x:Class="UEVR.TrayContextMenu"
+
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:UEVR"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Context Menu"
+    FontFamily="{DynamicResource MaterialDesignFont}"
+    ResizeMode="NoResize"
+    TextElement.FontSize="11"
+    TextElement.FontWeight="Regular"
+    TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+    TextOptions.TextFormattingMode="Ideal"
+    TextOptions.TextRenderingMode="Auto" RenderTransformOrigin="1,1" Deactivated="Window_Deactivated" AutomationProperties.IsOffscreenBehavior="Onscreen" Loaded ="Window_Loaded" Foreground="{x:Null}" Background="{DynamicResource PrimaryHueDarkBrush}" BorderBrush="{DynamicResource MaterialDesignChipBackground}" Style="{DynamicResource MaterialDesignWindow}" Cursor="Hand" Topmost="True" ShowActivated="False" UseLayoutRounding="False" WindowStyle="None" ShowInTaskbar="False" Icon="/discord.png" SizeToContent="WidthAndHeight" LostFocus="Window_LostFocus" LostMouseCapture="Window_LostMouseCapture" MouseLeave="Window_MouseLeave">
+    <Window.LayoutTransform>
+        <TransformGroup>
+            <ScaleTransform CenterX="1" CenterY="1"/>
+            <SkewTransform CenterX="1" CenterY="1"/>
+            <RotateTransform CenterX="1" CenterY="1"/>
+            <TranslateTransform/>
+        </TransformGroup>
+    </Window.LayoutTransform>
+    <Window.RenderTransform>
+        <TransformGroup>
+            <ScaleTransform/>
+            <SkewTransform/>
+            <RotateTransform/>
+            <TranslateTransform/>
+        </TransformGroup>
+    </Window.RenderTransform>
+
+    <Border BorderBrush="{DynamicResource MaterialDesignBody}" BorderThickness="2" Background="{DynamicResource AttentionToActionBrush}">
+        <StackPanel Orientation="Vertical" d:LayoutOverrides="Width" Margin="-2,-2,-2,-2" HorizontalAlignment="Left" VerticalAlignment="Top" Focusable="True">
+            <Button
+                    x:Name="btnShow"
+                    Click="btnShow_Click"
+                    Visibility="Collapsed"
+                    Content="Show Window" Padding="5,1,5,1" Height="30" Foreground="{DynamicResource MaterialDesignBody}" BorderBrush="{DynamicResource MaterialDesignBody}" Background="{DynamicResource AttentionToActionBrush}" Width="115" d:LayoutOverrides="LeftPosition, RightPosition, TopPosition, BottomPosition" ScrollViewer.VerticalScrollBarVisibility="Disabled" FontFamily="Segoe UI" FontWeight="Normal" FontSize="12"  Opacity="0.995" ForceCursor="True" />
+            <Button
+                x:Name="btnSettings"
+                Click="btnSettings_Click"
+                Content="Settings" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" FontFamily="Segoe UI" FontWeight="Normal" FontSize="12" />
+           
+            <Button
+                    x:Name="btnPause"
+                    Click="btnPause_Click"
+                    Content="Pause Injection" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" FontFamily="Segoe UI" FontSize="12" FontWeight="Normal"  />
+            <Button
+                    x:Name="btnResume"
+                    Click="btnResume_Click"
+                    Content="Resume Injection" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" Visibility="Collapsed" FontFamily="Segoe UI" FontWeight="Normal" FontSize="12"/>
+            <Button
+                x:Name="btnGlobalFolder"
+                Click="btnGlobalFolder_Click"
+                Content="Open Global Dir" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" FontFamily="Segoe UI" FontWeight="Normal" FontSize="12" />
+
+
+            <Button
+     x:Name="btnProfileFolder"
+     Click="btnProfileFolder_Click"
+     Content="Open Profile Dir" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" FontWeight="Normal" FontFamily="Segoe UI" FontSize="12" Visibility="Collapsed"  />
+            <Button
+     x:Name="btnGameFolder"
+     Click="btnGameFolder_Click"
+     Content="Open Game Dir" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" Visibility="Collapsed" FontFamily="Segoe UI" FontWeight="Normal" FontSize="12" />
+            <Button
+   x:Name="btnCloseGame"
+   Click="btnCloseGame_Click"
+   Content="Close Game" Padding="5,1,5,1" Background="{DynamicResource AttentionToActionBrush}" Foreground="{DynamicResource MaterialDesignDarkForeground}" BorderBrush="{DynamicResource MaterialDesignBody}" ForceCursor="True" Height="30" Width="115" d:LayoutOverrides="LeftPosition, RightPosition" Visibility="Collapsed" FontFamily="Segoe UI" FontWeight="Normal" FontSize="12" />
+            <Button
+                    x:Name="btnExit"
+                    Click="btnExit_Click"
+                    Content="Exit UEVR" Padding="5,1,5,1" Height="30" Background="{DynamicResource AttentionToActionBrush}" BorderBrush="{DynamicResource MaterialDesignBody}" Foreground="{DynamicResource MaterialDesignDarkForeground}" Width="115" FontFamily="Segoe UI" FontSize="12" FontWeight="Normal"  />
+        </StackPanel>
+
+    </Border>
+</Window>

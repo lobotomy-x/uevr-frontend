@@ -1,18 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Diagnostics;
-using System.Reflection;
 
 namespace UEVR {
     class Injector {
+
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+        public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
 
         [DllImport("kernel32.dll")]
         public static extern bool CloseHandle(IntPtr hObject);
@@ -38,92 +35,97 @@ namespace UEVR {
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
 
+        public static string ResolvePath(string dllPath)
+        {
+            var fname = Path.GetFileName(dllPath);
+            var resolvedPath = Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UnrealVRMod", "UEVR", fname));
+            try
+            {
+                var localDll = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath)!, Path.GetFileName(dllPath));
+                if (File.Exists(localDll)) 
+                     return Path.GetFullPath(localDll);
+            }
+            catch
+            { }
+            return resolvedPath;
+        }
+
+     
         // Inject the DLL into the target process
         // dllPath is local filename, relative to EXE.
-        public static bool InjectDll(int processId, string dllPath, out IntPtr dllBase) {
-            string originalPath = dllPath;
 
-            try {
-                var exeDirectory = AppContext.BaseDirectory;
-
-                if (exeDirectory != null) {
-                    var newPath = Path.Combine(exeDirectory, dllPath);
-
-                    if (System.IO.File.Exists(newPath)) {
-                        dllPath = Path.Combine(exeDirectory, dllPath);
-                    }
-                }
-            } catch (Exception) {
-            }
-
-            if (!System.IO.File.Exists(dllPath)) {
-                MessageBox.Show($"{originalPath} does not appear to exist! Check if any anti-virus software has deleted the file. Reinstall UEVR if necessary.\n\nBaseDirectory: {AppContext.BaseDirectory}");
-            }
+        public static bool InjectDll(uint processId, string dllPath, out IntPtr dllBase) {
+           
+            if (Directory.GetCurrentDirectory().EndsWith("UnrealVRMod", StringComparison.OrdinalIgnoreCase))
+                Directory.SetCurrentDirectory("UEVR");
+            var resolvedPath = Path.Combine(Directory.GetCurrentDirectory(), dllPath);
 
             dllBase = IntPtr.Zero;
 
-            string fullPath = Path.GetFullPath(dllPath);
-
             // Open the target process with the necessary access
-            IntPtr processHandle = OpenProcess(0x1F0FFF, false, processId);
-
-            if (processHandle == IntPtr.Zero) {
-                MessageBox.Show("Could not open a handle to the target process.\nYou may need to start this program as an administrator, or the process may be protected.");
-                return false;
-            }
-
+            IntPtr processHandle = OpenProcess(ProcessAccessFlags.DEFAULT, false, processId);
             // Get the address of the LoadLibrary function
             IntPtr loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
 
-            if (loadLibraryAddress == IntPtr.Zero) {
-                MessageBox.Show("Could not obtain LoadLibraryW address in the target process.");
-                return false;
-            }
-
-            // Allocate memory in the target process for the DLL path
-            IntPtr dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (uint)fullPath.Length, 0x1000, 0x40);
-
-            if (dllPathAddress == IntPtr.Zero) {
-                MessageBox.Show("Failed to allocate memory in the target process.");
-                return false;
-            }
-
+            //Allocate memory in the target process for the DLL path
+            IntPtr dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (uint)resolvedPath.Length, 4096U, 64U);
             // Write the DLL path in UTF-16
             int bytesWritten = 0;
-            var bytes = Encoding.Unicode.GetBytes(fullPath);
-            WriteProcessMemory(processHandle, dllPathAddress, bytes, (uint)(fullPath.Length * 2), out bytesWritten);
-
+            var bytes = Encoding.Unicode.GetBytes(resolvedPath);
+            WriteProcessMemory(processHandle, dllPathAddress, bytes, (uint)(resolvedPath.Length * 2), out bytesWritten);
             // Create a remote thread in the target process that calls LoadLibrary with the DLL path
             IntPtr threadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryAddress, dllPathAddress, 0, IntPtr.Zero);
 
-            if (threadHandle == IntPtr.Zero) {
-                MessageBox.Show("Failed to create remote thread in the target processs.");
-                return false;
-            }
+            var u = WaitForSingleObject(threadHandle, 1000);
 
-            WaitForSingleObject(threadHandle, 1000);
-
-            Process p = Process.GetProcessById(processId);
-
-            // Get base of DLL that was just injected
-            if (p != null) try {
-                foreach (ProcessModule module in p.Modules) {
-                    if (module.FileName != null && module.FileName == fullPath) {
-                        dllBase = module.BaseAddress;
-                        break;
-                    }
-                }
-            } catch (Exception ex) {
-                Console.WriteLine($"Exception caught: {ex}");
-                MessageBox.Show($"Exception while injecting: {ex}");
-            }
 
             return true;
         }
 
-        public static bool InjectDll(int processId, string dllPath) {
+        [Flags]
+        public enum ProcessAccessFlags : uint {
+            SYNCHRONIZE = 0x100000,
+            QUERY_INFORMATION = 0x0400,
+            VM_READ = 0x0010,
+            ALL_ACCESS = 0x1FFFFF,
+            TERMINATE = 0x0001,
+            CREATE_THREAD = 0x0002,
+            VM_OPERATION = 0x0008,
+            VM_WRITE = 0x0020,
+            DUP_HANDLE = 0x0040,
+            CREATE_PROCESS = 0x0080,
+            SET_QUOTA = 0x0100,
+            SET_INFORMATION = 0x0200,
+            SUSPEND_RESUME = 0x0800,
+            QUERY_LIMITED_INFORMATION = 0x1000,
+            SET_LIMITED_INFORMATION = 0x2000,
+            DEFAULT = 0x1F0FFF,
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern IntPtr OpenProcess(
+            ProcessAccessFlags access,
+            bool inheritHandle,
+            uint processId);
+        public async static void InjectDllAsync(uint processId, string dllPath) {
             IntPtr dummy;
-            return InjectDll(processId, dllPath, out dummy);
+            bool injected = InjectDll(processId, dllPath, out dummy);
+        }
+        public static bool InjectDll(uint processId, string dllPath)
+        {
+            IntPtr dummy;
+            InjectDll(processId, dllPath, out dummy);
+            try {
+                Process? p = Process.GetProcessById((int)processId);
+                if (p is not null && !p.HasExited) {
+                    foreach(var module in p.Modules) {
+                        if (((ProcessModule)module).FileName!.EndsWith(dllPath)) {
+                            return true;
+                        }
+                    }
+                }
+            } catch { }
+            return false;
         }
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -133,10 +135,11 @@ namespace UEVR {
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern bool FreeLibrary(IntPtr hModule);
 
-        public static bool CallFunctionNoArgs(int processId, string dllPath, IntPtr dllBase, string functionName, bool wait = false) {
+        public static bool CallFunctionNoArgs(uint processId, string dllPath, IntPtr dllBase, string functionName, bool wait = false) { 
             IntPtr processHandle = OpenProcess(0x1F0FFF, false, processId);
 
-            if (processHandle == IntPtr.Zero) {
+            if (processHandle == IntPtr.Zero)
+            {
                 MessageBox.Show("Could not open a handle to the target process.\nYou may need to start this program as an administrator, or the process may be protected.");
                 return false;
             }
@@ -144,14 +147,16 @@ namespace UEVR {
             // We need to load the DLL into our own process temporarily as a workaround for GetProcAddress not working with remote DLLs
             IntPtr localDllHandle = LoadLibrary(dllPath);
 
-            if (localDllHandle == IntPtr.Zero) {
+            if (localDllHandle == IntPtr.Zero)
+            {
                 MessageBox.Show("Could not load the target DLL into our own process.");
                 return false;
             }
 
             IntPtr localVa = GetProcAddress(localDllHandle, functionName);
 
-            if (localVa == IntPtr.Zero) {
+            if (localVa == IntPtr.Zero)
+            {
                 MessageBox.Show("Could not obtain " + functionName + " address in our own process.");
                 return false;
             }
@@ -162,12 +167,14 @@ namespace UEVR {
             // Create a remote thread in the target process that calls the function
             IntPtr threadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, functionAddress, IntPtr.Zero, 0, IntPtr.Zero);
 
-            if (threadHandle == IntPtr.Zero) {
+            if (threadHandle == IntPtr.Zero)
+            {
                 MessageBox.Show("Failed to create remote thread in the target processs.");
                 return false;
             }
 
-            if (wait) {
+            if (wait)
+            {
                 WaitForSingleObject(threadHandle, 2000);
             }
 
