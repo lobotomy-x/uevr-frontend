@@ -53,7 +53,6 @@ namespace UEVR {
      
         // Inject the DLL into the target process
         // dllPath is local filename, relative to EXE.
-
         public static bool InjectDll(uint processId, string dllPath, out IntPtr dllBase) {
            
             if (Directory.GetCurrentDirectory().EndsWith("UnrealVRMod", StringComparison.OrdinalIgnoreCase))
@@ -71,14 +70,13 @@ namespace UEVR {
             IntPtr dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (uint)resolvedPath.Length, 4096U, 64U);
             // Write the DLL path in UTF-16
             int bytesWritten = 0;
+
             var bytes = Encoding.Unicode.GetBytes(resolvedPath);
             WriteProcessMemory(processHandle, dllPathAddress, bytes, (uint)(resolvedPath.Length * 2), out bytesWritten);
             // Create a remote thread in the target process that calls LoadLibrary with the DLL path
             IntPtr threadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryAddress, dllPathAddress, 0, IntPtr.Zero);
 
             var u = WaitForSingleObject(threadHandle, 1000);
-
-
             return true;
         }
 

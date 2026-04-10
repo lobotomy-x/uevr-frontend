@@ -153,14 +153,14 @@ namespace UEVR {
         static string? backend_dir;
         // single-instance mutex to avoid multiple instances repeatedly starting/killing each other
         private static Mutex? s_instanceMutex;
-        private Updater? _updater;
+
         static List<string> m_whiteList = new();
         #region variables
         // process list
         private List<Process> m_processList = new List<Process>();
         // Only UE games with a custom platform window
 
-        private MainWindowSettings m_mainWindowSettings = new MainWindowSettings();
+        internal MainWindowSettings m_mainWindowSettings = new MainWindowSettings();
         private bool m_focusGameOnInjection;
         private bool m_nullifyVRPlugins;
         private DateTime m_uevrStartTime;
@@ -171,10 +171,6 @@ namespace UEVR {
         // for temporary exclusions to prevent attempted autoinjection, e.g. protected procs
         private List<string> m_excludedNames = new List<string>();
 
-        // Git
-        string stable_release = "https://api.github.com/repos/praydog/uevr/releases/latest";
-        string nightly_release = "https://api.github.com/repos/praydog/uevr-nightly/releases/latest";
-        string releases_page = "https://api.github.com/repos/praydog/uevr-nightly/releases";
         private Data? m_lastSharedData = null;
         private bool m_connected = false;
         private int? m_pid;
@@ -191,7 +187,7 @@ namespace UEVR {
         private ManagementEventWatcher? watcher;
         private string? m_commandLineAttachExe = null;
         private bool m_ignoreFutureVDWarnings = false;
-
+        internal Updater _updater = new Updater();
         private string m_runtime = "openxr_loader.dll";
         private bool m_paused_injection;
         private bool m_hasMouse;
@@ -317,9 +313,6 @@ namespace UEVR {
 
 
 
-            _updater = new Updater();
-
-
 
             profiles = new List<string>();
             var profdirs = Directory.GetDirectories(GetGlobalDir());
@@ -363,6 +356,7 @@ namespace UEVR {
                 }
                 foreach (var prof in profiles) {
                     if (!m_mainWindowSettings.BlackListedGames.Contains(Path.GetFileName(prof))
+                        && IsValidProfile(prof)
                         && !m_whiteList.Contains(Path.GetFileName(prof)))
                         m_whiteList.Add(prof);
                 }
@@ -396,8 +390,13 @@ namespace UEVR {
         #region update
 
 
-        async Task<bool> AllowUpdateOnce() {
+        internal async Task<bool> AllowUpdateOnce() {
             if (CheckSetting("AutomaticNightlyUpdates")) return true;
+            else if (!CheckSetting("IntroducedUpdateFeature")) {
+                if (AllowAutoUpdateFeature()) {
+                    return true;
+                }
+            }
             string message = "A new nightly version is available\n" +
                 "These releases often bring new features and fixes needed for certain games and profiles.\n" +
                 "Would you like to download the update?";
@@ -415,19 +414,15 @@ namespace UEVR {
         }
 
         private bool AllowAutoUpdateFeature() {
-            string message = "UEVR Injector is now capable of automatically updating the backend.\n" +
+            string message = "UEVR Injector is capable of automatically updating the backend.\n" +
             "These releases often bring new features and fixes and are highly recommended.\n" +
-            "Would you like to enable automatic nightly updates going forward?\n" +
+            "Would you like to enable automatic nightly updates?\n" +
             "If you select no then you will be prompted for permission each time an update is available.";
 
 
             var backend = Path.Combine(GetGlobalDir(), "UEVR", "UEVRBackend.dll");
             if (!File.Exists(backend)) {
-                string firstInstallMessage = "UEVR Injector is capable of automatically updating the backend.\n" +
-    "These releases often bring new features and fixes and are highly recommended.\n" +
-    "Would you like to enable automatic nightly updates going forward?\n" +
-    "If you select no then you will be prompted for permission each time an update is available.";
-                var firstInstallDialog = new YesNoDialog("Automatic Update Feature", firstInstallMessage);
+                var firstInstallDialog = new YesNoDialog("Automatic Update Feature", message);
             }
             if (CheckSetting("IntroducedUpdateFeature")) return CheckSetting("AutomaticNightlyUpdates");
 
@@ -444,26 +439,6 @@ namespace UEVR {
             }
             return false;
         }
-
-        internal async Task CheckForNightlyUpdates() {
-            var releases = await _updater!.GetReleasesAsync();
-            var currentRevision = _updater!.GetCurrentRevision();
-
-            if (_updater!.IsUpdateAvailable(releases, currentRevision)) {
-                var latest = releases.First();
-                var success = await _updater.DownloadAndExtractAsync(latest);
-                if (success) {
-                    UpdateSetting("LastUpdated", DateTime.Now);
-                    // UI notification logic remains here
-                    m_nNotificationsGroupBox.Visibility = Visibility.Visible;
-                    m_updateStatus.Visibility = Visibility.Visible;
-                    await Task.Delay(5000);
-                    m_updateStatus.Visibility = Visibility.Collapsed;
-                    m_nNotificationsGroupBox.Visibility = Visibility.Collapsed;
-                }
-            }
-        }
-
 
 
         #endregion
@@ -502,16 +477,12 @@ namespace UEVR {
         }
 
         public async void FindAndInject() {
-            //if (m_paused_injection || m_connected) return;
             // every single unreal engine program has an UnrealWindow class window
             // so we just call FindWindow which scans all windows and then grab the process
             // simple, easy, ensures the game has already made a window so we won't inject too early
             var uepid = FindUnrealWindow();
             if (uepid != 0) {
-
-                // we are also making it impossible to inject into a game without an UnrealWindow
-                // so this is not related to the previous excluded process stuff
-                // rather this is a temporary list we fill if we fail to inject so that we don't try again
+                // this is a temporary list we fill if we fail to inject so that we don't try again
                 if (m_excluded_processes.Count > 0) {
                     foreach (var proc in m_excluded_processes) {
                         if (proc.Id == (int)uepid) {
@@ -564,7 +535,6 @@ namespace UEVR {
 
         // called by the notifyIcon
         // notifyIcon holds refs to mainwindow and context menu
-        // mainwindow and context menu dont know about each other
         public bool IsInjectionPaused() {
             return m_paused_injection;
         }
@@ -586,8 +556,6 @@ namespace UEVR {
             }
         }
         public bool IsConnected() {
-            /*    Task task = Update_InjectorConnectionStatus();
-                task.RunSynchronously();*/
             return m_connected;
         }
         private async Task InjectIntoProcess(uint? pid, string? name) {
@@ -599,15 +567,13 @@ namespace UEVR {
                     if (!Injector.InjectDll((uint)pid, m_runtime)) {
                         // Idea here is to force UEVRbackend to load the runtime from global plugins folder and delete 
                         // the runtime copy after game closes so that it doesnt prevent switching to a different runtime
-                        // kinda retarded, probably better to just make a new PR to fix UEVR paths for loading runtimes
+                        // probably better to just make a new PR to fix UEVR paths for loading runtimes
                         MessageBox.Show("UEVR was succesfully injected but the VR runtime could not be loaded.\nWe will try to load the runtime as a plugin.\nYou will need to open the UEVR menu and click reload plugins and then try reinitialize runtime.");
                         File.Copy(Path.Combine(GetGlobalDir(), "UEVR", m_runtime), Path.Combine(GetGlobalDir(), "UEVR", "Plugins", m_runtime));
-                        await CleanupScheduler.DeleteWhenUnlockedAsync(Path.Combine(GetGlobalDir(), "UEVR", "Plugins", m_runtime), new CancellationToken(), p).ConfigureAwait(false);
+                        await CleanupScheduler.DeleteWhenUnlockedAsync(Path.Combine(GetGlobalDir(), "UEVR", "Plugins", m_runtime), new CancellationToken(), p);
                     }
-
                     Injector.InjectDllAsync((uint)pid, "LuaVR");
                     if (name is null) name = p.ProcessName;
-
                     InitializeConfig(Path.GetFileNameWithoutExtension(name));
                     if (m_nullifyVRPlugins) {
                         try {
@@ -633,11 +599,7 @@ namespace UEVR {
                             _notifyIcon.ShowConnectionOptions();
                        
                         }
-
-                    } catch {
-
-
-                    }
+                    } catch {}
                 } else {
                     if (IsAdministrator() && !CheckSetting("ProcessStartTraceInjection")) {
                         m_excluded_processes.Add(Process.GetProcessById((int)pid));
@@ -648,14 +610,13 @@ namespace UEVR {
                         m_adminExplanation.Visibility = Visibility.Visible;
                     }
                 }
-            } catch (Exception ex) { Debug.WriteLine($"InjectIntoProcess error: {ex}"); }
+            } catch { }
         }
 
 
         private async Task DeleteEnginePluginsOnExit(Process p) {
             if (!IsProcessRunning(p)) return;
             if (!GetExecutablePath(p, out string? path)) return;
-
             using var cts = new CancellationTokenSource();
             try {
                 if (IsProcessRunning(p))
@@ -686,11 +647,8 @@ namespace UEVR {
             if (path is null) return null;
             try {
                 var win64 = Path.GetDirectoryName(path);
-                if (win64 is null) return null;
                 var binaries = Path.GetDirectoryName(win64);
-                if (binaries is null) return null;
                 var gamename = Path.GetDirectoryName(binaries);
-                if (gamename is null) return null;
                 var gameroot = Path.GetDirectoryName(gamename);
                 return gameroot;
             } catch { }
@@ -703,13 +661,12 @@ namespace UEVR {
                 List<string> enginePlugins = new List<string>();
                 var gameroot = GetGameRootPath(path);
                 if (gameroot is null) return;
-                var dlls = Directory.GetFileSystemEntries((string)gameroot, "*.dll", SearchOption.AllDirectories);
+                var dlls = Directory.GetFileSystemEntries(gameroot, "*.dll", SearchOption.AllDirectories);
                 foreach (var dll in dlls) {
                     if (vrDlls.Any(f => NullableContains(dll, f))) {
                         enginePlugins.Add(dll);
                     }
                 }
-
                 if (enginePlugins.Count != 0) {
                     foreach (var plug in enginePlugins) {
                         File.Move(plug, Path.ChangeExtension(plug, ".bak"));
@@ -721,19 +678,13 @@ namespace UEVR {
 
 
         static async void OnStartTrace(object sender, EventArrivedEventArgs e) {
-
             uint pid = (uint)e.NewEvent ["ProcessID"];
             string name = (string)e.NewEvent ["ProcessName"];
             string baseName = name.Replace(".exe", "").ToLower();
             if (backend_dir is null) backend_dir = Path.Combine(GetGlobalDir(), "UEVR");
             Directory.SetCurrentDirectory(backend_dir);
-            Console.WriteLine($"[TRACE] Candidate PID={pid} NAME={name}");
-
-            // Only consider profiles you care about
             if (!IsProfile(baseName) && !Contains(m_whiteList, baseName))
                 return;
-
-            // Delay to filter out fake/decoy launches  
             var consent = Process.GetProcessesByName("consent.exe");
             if (consent.Length != 0) {
                 try {
@@ -747,17 +698,14 @@ namespace UEVR {
                 } catch { }
                 return;
             }
-            await Task.Delay(500);
+            // Delay to filter out fake/decoy launches  
             Process? p = null;
-            try { p = Process.GetProcessById((int)pid); } catch { return; } // process already exited → decoy launch
+            try { p = Process.GetProcessById((int)pid); } catch { return; } 
             await Task.Delay(500);
-            // Additional validation 
             if (p.HasExited) return;
             await Task.Delay(500);
-            //   if (p.MainModule == null) return; // hasn't fully initialized
             if (p.WorkingSet64 < 10_000_000) return; // tiny decoy process
             await Task.Delay(500);
-            // Now it's safe to inject
             new Thread(() => {
                 Directory.SetCurrentDirectory(backend_dir);
                 Injector.InjectDllAsync((uint)pid, "UEVRBackend.dll");
@@ -765,27 +713,7 @@ namespace UEVR {
             Console.WriteLine($"\n[TRACE] PID={pid} NAME={name} TIME={DateTime.Now:HH:mm:ss.fff}");
         }
 
-
-        private void OnProcessTerminated(object sender, EventArrivedEventArgs e) {
-            if (!m_connected) {
-                if (_notifyIcon.GetIconType() == "_connected") {
-                    _notifyIcon.ModifyTrayIcon("default");
-                    _notifyIcon.ModifyToolTip();
-                }
-                return;
-            }
-            ManagementBaseObject targetInstance = (ManagementBaseObject)e.NewEvent ["TargetInstance"];
-            string? processName = targetInstance ["Name"]?.ToString();
-            int processId = Convert.ToInt32(targetInstance ["ProcessId"]);
-            string? pathName = Path.GetFileNameWithoutExtension(processName);
-            if (m_pid == processId || NullableEquals(pathName, m_currentConfig)) {
-                m_connected = false;
-                _notifyIcon.ModifyTrayIcon("default");
-                _notifyIcon.ModifyToolTip();
-            }
-        }
-
-        private void Update_InjectStatus(Process? p) {
+            private void Update_InjectStatus(Process? p) {
             try {
                 if (m_paused_injection && !m_connected) {
                     if (_notifyIcon.GetIconType() != "_paused")
@@ -836,7 +764,9 @@ namespace UEVR {
                 FillProcessList();
 
                 try {
-                    var verifyProcess = Process.GetProcessById((int)m_lastSelectedProcessId!);
+                    var verifyProcess = m_connectedProc is not null ? m_connectedProc :
+                                                   m_pid is not null ? Process.GetProcessById((int)m_pid) :
+                                                   Process.GetProcessById((int)m_lastSelectedProcessId!);
 
                     if (verifyProcess == null || verifyProcess.HasExited || verifyProcess.ProcessName != m_lastSelectedProcessName) {
                         var processes = Process.GetProcessesByName(m_lastSelectedProcessName);
@@ -875,7 +805,7 @@ namespace UEVR {
                 return false; 
             }
 
-            if (name is null || uevr_profile is null || IsEpicApp(uevr_profile!)) return false;
+            if (name is null || IsEpicApp(uevr_profile!)) return false;
             var hasProfile = Directory.Exists(uevr_profile);
             if (autoInjection && (hasProfile || (CheckSetting("AutoInjectNewGames")))) return true;
             // since we cleanup invalid profiles now we can usually just autoinject if a profile exists
@@ -919,8 +849,9 @@ namespace UEVR {
 
         private static bool IsInjectableProcess(Process p) {
             if (GetExecutablePath(p.Id, out string? executable_path)) {
-                return !IsEpicApp(p) && (CheckProcessForUnrealWindow(p) ||
-                    m_whiteList.Contains(Path.GetFileNameWithoutExtension(executable_path!)));
+                return  !IsEpicApp(p) && 
+                            (CheckProcessForUnrealWindow(p) || 
+                            m_whiteList.Contains(Path.GetFileNameWithoutExtension(executable_path!)));
             }
             return false;
         }
@@ -990,16 +921,6 @@ namespace UEVR {
             return false;
         }
 
-        // Returns true if process is gone or appears unresponsive for a period
-        private async Task<bool> IsUnresponsive(Process? p) {
-            if (p is null) return false;
-            if (!p.Responding) {
-                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                if (!p.Responding) return true;
-            }
-            return false;
-        }
-
         private void ResetConnectionStatus() {
             m_connected = false;
             if (_notifyIcon.GetIconType() == "_connected") _notifyIcon.ModifyTrayIcon(m_paused_injection ? "_paused" : "default");
@@ -1041,7 +962,7 @@ namespace UEVR {
         private async Task MonitorProcessExitAsync(Process proc) {
             try {
                 using var cts = new CancellationTokenSource();
-                await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+                await proc.WaitForExitAsync(cts.Token);
                 // Ensure this runs on the UI thread when modifying UI state.
                 await Dispatcher.InvokeAsync(() => ResetConnectionStatus());
             } catch { }
@@ -1056,7 +977,7 @@ namespace UEVR {
                 if (!m_connected && !m_paused_injection) {
                     FindAndInject();
                 }
-                await MainWindow_Update().ConfigureAwait(false);
+                await MainWindow_Update();
 
 
                 // Once per hour check to see the last nightly update time
@@ -1073,7 +994,12 @@ namespace UEVR {
                                 // default update period is 12 hours
                                 if (DateTime.Now - last >= freq) {
                                     try {
-                                        await CheckForNightlyUpdates().ConfigureAwait(true);
+                                        if (_updater.IsUpdateAvailable(_updater.GetCurrentRevision(), await _updater.GetReleasesAsync(), out GitAPI.GitHubResponseObject? Update)) {
+                                        if (Update is not null ) {
+                                                await _updater.DownloadAndExtractAsync(Update);
+                                            }
+                                        
+                                        }
                                     } catch (Exception ex) { Debug.WriteLine($"Periodic CheckForNightlyUpdates failed: {ex}"); }
                                 }
                             } catch { }
@@ -1090,21 +1016,21 @@ namespace UEVR {
 
             if (m_connected) {
                 Task checkStatus = Update_InjectorConnectionStatus();
-                await checkStatus.WaitAsync(new CancellationToken()).ConfigureAwait(false);
+                await checkStatus.WaitAsync(new CancellationToken());
                 if (TryGetProcess((int?)m_pid, out Process? p)) {
                     if (p is not null) {
                         if (!CheckProcessForModule((uint)m_pid!, "UEVRBackend.dll", out _, out _)) {
-                            await InjectIntoProcess((uint)m_pid, null).ConfigureAwait(false);
+                            await InjectIntoProcess((uint)m_pid, null);
                         }
                         var cts = new CancellationToken();
-                        await p.WaitForExitAsync(cts).ConfigureAwait(false);
+                        await p.WaitForExitAsync(cts);
                         ResetConnectionStatus();
                     }
                 }
 
                 if (m_connected) {
                     //  Update_InjectStatus(p);
-                    await FindLuaMessage().ConfigureAwait(false);
+                    await FindLuaMessage();
                     Thread.Sleep(1000);
                 } else {
                     FindAndInject();
@@ -1168,7 +1094,12 @@ namespace UEVR {
             // Check for updates after window has loaded. Suppress on elevated relaunch to avoid prompt storms.
             try {
                 if (!m_skipDialogsOnStartup) {
-                    await CheckForNightlyUpdates().ConfigureAwait(true);
+                    if (_updater.IsUpdateAvailable(_updater.GetCurrentRevision(), await _updater.GetReleasesAsync(), out GitAPI.GitHubResponseObject? Update)) {
+                        if (Update is not null) {
+                            await _updater.DownloadAndExtractAsync(Update);
+                        }
+
+                    }
                 } else {
                     m_skipDialogsOnStartup = false;
                 }
@@ -1184,7 +1115,7 @@ namespace UEVR {
                 m_ignoreFutureVDWarnings = m_mainWindowSettings.IgnoreFutureVDWarnings;
                 m_focusGameOnInjectionCheckbox.IsChecked = m_mainWindowSettings.FocusGameOnInjection;
             }
-            m_updateTimer.Tick += async (sender, e) => await Dispatcher.InvokeAsync(async () => await MainWindow_Update().ConfigureAwait(false));
+            m_updateTimer.Tick += async (sender, e) => await Dispatcher.InvokeAsync(async () => await MainWindow_Update());
             m_updateTimer.Start();
         }
 
@@ -2080,7 +2011,6 @@ namespace UEVR {
 
         private SemaphoreSlim m_processSemaphore = new SemaphoreSlim(1, 1); // create a semaphore with initial count of 1 and max count of 1
         private string? m_lastDefaultProcessListName = null;
-        private readonly string releasesUrl = "https://api.github.com/repos/praydog/uevr-nightly/releases";
 
         public bool SettingsMenuOpen { get => settingsMenuOpen; set => settingsMenuOpen = value; }
 
@@ -2090,58 +2020,41 @@ namespace UEVR {
                 return;
             }
 
-            await m_processSemaphore.WaitAsync().ConfigureAwait(false);
+            await m_processSemaphore.WaitAsync();
 
             try {
                 m_processList.Clear();
                 m_processListBox.Items.Clear();
 
-                await Task.Run(() => {
+                var injectableProcesses = await Task.Run(() => {
                     // get the list of processes
-                    Process [] processList = Process.GetProcesses();
-
+                    var processList = new List<Process>();
                     // loop through the list of processes
-                    foreach (Process process in processList) {
-                        if (!IsInjectableProcess(process)) {
-                            continue;
+                    foreach (Process process in Process.GetProcesses()) {
+                        if (IsInjectableProcess(process)) {
+                            processList.Add(process);
                         }
-
-                        Application.Current.Dispatcher.Invoke(() => {
-                            m_processList.Add(process);
-                            m_processList.Sort((a, b) => a.ProcessName.CompareTo(b.ProcessName));
-                            m_processListBox.Items.Clear();
-
-                            foreach (Process p in m_processList) {
-                                string processName = GenerateProcessName(p);
-                                m_processListBox.Items.Add(processName);
-
-                                if (m_processListBox.SelectedItem == null && m_processListBox.Items.Count > 0) {
-                                    if (m_lastDefaultProcessListName == null || m_lastDefaultProcessListName == processName) {
-                                        m_processListBox.SelectedItem = m_processListBox.Items [m_processListBox.Items.Count - 1];
-                                        m_lastDefaultProcessListName = processName;
-                                    }
-                                }
-                            }
-                        });
                     }
+                    processList.Sort((a, b) => a.ProcessName.CompareTo(b.ProcessName));
+                    return processList;
+                });
+                m_processList.Clear();
+                m_processList.AddRange(injectableProcesses);
+                m_processListBox.Items.Clear();
 
-                    Application.Current.Dispatcher.Invoke(() => {
-                        m_processListBox.Items.Clear();
+                foreach (var p in m_processList) {
+                    string processName = GenerateProcessName(p);
+                    m_processListBox.Items.Add(processName);
 
-                        foreach (Process process in m_processList) {
-                            string processName = GenerateProcessName(process);
-                            m_processListBox.Items.Add(processName);
-
-                            if (m_processListBox.SelectedItem == null && m_processListBox.Items.Count > 0) {
-                                if (m_lastDefaultProcessListName == null || m_lastDefaultProcessListName == processName) {
-                                    m_processListBox.SelectedItem = m_processListBox.Items [m_processListBox.Items.Count - 1];
-                                    m_lastDefaultProcessListName = processName;
-                                }
-                            }
+                    if (m_processListBox.SelectedItem == null && m_processListBox.Items.Count > 0) {
+                        if (m_lastDefaultProcessListName == null || m_lastDefaultProcessListName == processName) {
+                            m_processListBox.SelectedItem = m_processListBox.Items [m_processListBox.Items.Count - 1];
+                            m_lastDefaultProcessListName = processName;
                         }
-                    });
-                }).ConfigureAwait(false);
-            } finally {
+                    }
+                }
+            }
+           finally {
                 m_processSemaphore.Release();
             }
         }

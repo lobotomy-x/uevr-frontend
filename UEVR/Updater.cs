@@ -19,6 +19,7 @@ namespace UEVR {
         private readonly string _globalDir;
         private readonly string _backendDir;
         private readonly string _releasesUrl = "https://api.github.com/repos/praydog/uevr-nightly/releases";
+        private readonly string _userAgent = "UEVR";
         private readonly string _revisionPath;
         private readonly string _cachePath;
 
@@ -54,7 +55,7 @@ namespace UEVR {
                     if (cached?.Count > 0)
                         releases = cached.OrderByDescending(r => r.Published_At).ToList();
                 } else {
-                    var fresh = await GetAllReleasesAsync(new System.Net.Http.HttpClient(), "UEVR", _releasesUrl);
+                    var fresh = await GetAllReleasesAsync(new System.Net.Http.HttpClient(), _userAgent, _releasesUrl);
                     if (fresh?.Count > 0) {
                         releases = fresh.OrderByDescending(r => r.Published_At).ToList();
                         File.WriteAllText(_cachePath, JsonSerializer.Serialize(fresh, new JsonSerializerOptions { WriteIndented = true }));
@@ -67,13 +68,14 @@ namespace UEVR {
         /// <summary>
         /// Checks if a newer nightly release is available compared to current revision.
         /// </summary>
-        public bool IsUpdateAvailable(List<GitHubResponseObject> releases, string? currentRevision) {
+        public bool IsUpdateAvailable(string? currentRevision, List<GitHubResponseObject> releases, out GitHubResponseObject? Update) {
+            Update = null;
             if (string.IsNullOrEmpty(currentRevision) || releases.Count == 0)
                 return false;
 
             var latest = releases.FirstOrDefault();
             if (latest == null) return false;
-
+            Update = latest;
             return !latest.Tag_Name!.Contains(currentRevision, StringComparison.OrdinalIgnoreCase);
         }
 

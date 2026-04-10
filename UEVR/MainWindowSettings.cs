@@ -182,12 +182,12 @@ namespace UEVR {
 
         [UserScopedSettingAttribute()]
         [DefaultSettingValueAttribute("false")]
-        public bool UsingRollbackVersion {
+        public bool IgnoreUpdates {
             get {
-                return ((bool)(this ["UsingRollbackVersion"]));
+                return ((bool)(this ["IgnoreUpdates"]));
             }
             set {
-                this ["UsingRollbackVersion"] = value;
+                this ["IgnoreUpdates"] = value;
             }
         }
 
@@ -218,16 +218,6 @@ namespace UEVR {
             }
         }
 
-        [UserScopedSettingAttribute()]
-        [DefaultSettingValueAttribute("")]
-        public global::System.DateTime SelectedRollbackDate {
-            get {
-                return ((global::System.DateTime)(this ["SelectedRollbackDate"]));
-            }
-            set {
-                this ["SelectedRollbackDate"] = value;
-            }
-        }
 
         [UserScopedSettingAttribute()]
         [DefaultSettingValueAttribute("")]

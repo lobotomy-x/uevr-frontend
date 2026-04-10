@@ -26,11 +26,10 @@ using Microsoft.VisualBasic;
 namespace UEVR {
     public partial class MainWindowSettingsMenu : UserControl {
         private readonly MainWindow window;
-        private readonly string _releasesPage = "https://api.github.com/repos/praydog/uevr-nightly/releases";
         private List<GitHubResponseObject> _releases = new();
         private GitHubResponseObject? _selectedRelease;
         private GitHubResponseObject? _currentRelease;
-        private static readonly HttpClient _httpClient = new HttpClient();
+        // no one actually changes these but don't worry, if you have the launchers running from a different location we'll find and use those
         private string epicPath = "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Binaries\\Win64\\EpicGamesLauncher.exe";
         private string steamPath = "C:\\Program Files (x86)\\Steam\\Steam.exe";
         private bool _launchersOpened;
@@ -64,12 +63,16 @@ namespace UEVR {
             m_autoUpdateCheckbox.Unchecked += (s, e) => UpdateSetting(nameof(MainWindowSettings.AutomaticNightlyUpdates), false);
 
             m_autoInjectCheckbox.Checked += (s, e) => UpdateSetting(nameof(MainWindowSettings.AutomaticInjection), true);
-            m_autoInjectAlwaysCheckbox.Checked += (s, e) => UpdateSetting(nameof(MainWindowSettings.AutoInjectNewGames), true);
 
             m_autoInjectCheckbox.Unchecked += (s, e) => UpdateSetting(nameof(MainWindowSettings.AutomaticInjection), false);
-            m_autoInjectAlwaysCheckbox.Unchecked += (s, e) => UpdateSetting(nameof(MainWindowSettings.AutoInjectNewGames), false);
+
+
+            m_ignoreUpdatesCheckbox.Checked += (s, e) => UpdateSetting(nameof(MainWindowSettings.IgnoreUpdates), true);
+            m_ignoreUpdatesCheckbox.Unchecked += (s, e) => UpdateSetting(nameof(MainWindowSettings.IgnoreUpdates), false);
+
             _updater = new Updater();
 
+            // This will automatically remap the shortcut to the currently running version in case the user moves it
             var _UEVRLnkPath = GetShellStartupPath("UEVR.lnk");
             if (File.Exists(_UEVRLnkPath)) {
                 m_startWithWindowsCheckbox.IsChecked = true;
@@ -80,20 +83,6 @@ namespace UEVR {
                     }
                 }
             }
-            //if (IsCurrentProcessElevated()) {
-            //    m_launchHelper.Visibility = Visibility.Visible;
-
-            //    m_launchHelper.Click += (s, e) => {
-            //        ProcessStartInfo ps = new ProcessStartInfo() {
-            //            FileName = "UEVRHelper.exe",
-            //            WorkingDirectory = Path.GetDirectoryName(Environment.ProcessPath)
-            //        };
-            //        Process.Start(ps);
-            //    };
-            //} else {
-            //    m_launchHelper.Visibility = Visibility.Collapsed;
-            //}
-
 
         }
 
@@ -114,6 +103,7 @@ namespace UEVR {
                 } catch { }
             }
         }
+
 
 
         private void Close_Click(object sender, RoutedEventArgs e) {
@@ -195,38 +185,50 @@ namespace UEVR {
                 LaunchersTab();
             }
             if (e.AddedItems [0] is not TabItem tab || tab.Header.ToString() != "Updates") return;
-            
-            _releases = await _updater.GetReleasesAsync();
-            VersionDateCombo.ItemsSource = _releases;
+            if (DownloadStatusText.Text.Contains("installed")) {
+                DownloadStatusText.Text = "Ready";
+            }
+                _releases = await _updater.GetReleasesAsync(); VersionDateCombo.ItemsSource = _releases;
             if (VersionDateCombo.Items.Count > 0)
                 VersionDateCombo.SelectedIndex = 0;
             SetCurrentRelease();
         }
 
         private async void SetCurrentRelease() {
-            // Show current version from revision.txt
             try {
                 var revisionPath = Path.Combine(MainWindow.GetGlobalDir(), "UEVR", "revision.txt");
                 var revision = File.ReadAllText(revisionPath).Trim();
-                foreach (var rel in _releases) {
-                    if (rel.Tag_Name!.Contains(revision, StringComparison.InvariantCultureIgnoreCase)) {
-                        _currentRelease = rel;
-                        break;
+                var newRelease = await Task.Run(() => {
+                    foreach (var rel in _releases) {
+                        if (rel.Tag_Name!.Contains(revision, StringComparison.InvariantCultureIgnoreCase))
+                            return rel;
                     }
+                    return _currentRelease;
+                });
+                _currentRelease = newRelease;
+                var _releaseTuple = await Task.Run(() => {
+                    var releaseText = newRelease!.Name!.Split($" ({revision})").First();
+                    var currentVersionText =
+                        releaseText +
+                        " (" + newRelease!.Published_At?.ToString("MMMM dd, yyyy") + ")";
+
+                    var latestDate = _releases.OrderByDescending(r => r.Published_At).First().Published_At!.Value;
+                    var currentDate = newRelease.Published_At!.Value;
+                    return new Tuple<string, TimeSpan>(currentVersionText, latestDate - currentDate);
+                });
+                var text = _releaseTuple.Item1.ToString();
+                if (_releaseTuple.Item2.Days > 0) {
+                    text += "\n" + $"{_releaseTuple.Item2.Days} Days behind";
+                    m_ignoreUpdatesCheckbox.IsEnabled = true;
+                } else {
+                    m_ignoreUpdatesCheckbox.IsEnabled = false;
                 }
-                var releaseText = _currentRelease!.Name!.Split($" ({revision})").First();
-                CurrentVersion.Text = "Installed:\n" + releaseText.ToString() +
-                    " (" + _currentRelease!.Published_At?.ToString("MMMM dd, yyyy") + ")" ?? "Unknown";
-                var latestdate = _releases.OrderByDescending(r => r.Published_At).First().Published_At!.Value;
-                var currentdate = _currentRelease!.Published_At!.Value;
-                if (DateTime.Compare(currentdate, latestdate)  < 0) {
-                    var diff = latestdate.Subtract(currentdate);
-                    CurrentVersion.Text += "\n" + $"{diff.Days.ToString()} Days behind";
-                }    
+                CurrentVersion.Text = text;
             } catch {
                 CurrentVersion.Text = "Current: Unknown";
             }
         }
+
 
         private void VersionDateCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             _selectedRelease = VersionDateCombo.SelectedItem as GitHubResponseObject;
@@ -237,9 +239,15 @@ namespace UEVR {
         private async void btnSelectVersion_Click(object sender, RoutedEventArgs e) {
             if (_selectedRelease == null) return;
             DownloadStatusText.Text = "Downloading...";
-            var success = await _updater.DownloadAndExtractAsync(_selectedRelease).ConfigureAwait(false);
-            DownloadStatusText.Text = success ? "✅ Update installed successfully!" : "❌ Failed";
+            var _release = _selectedRelease;
+            var success = await Task.Run(() => {
+                return _updater.DownloadAndExtractAsync(_release);
+            });
             SetCurrentRelease();
+            var isUpdate = !CurrentVersion.Text.Contains("Days behind");
+            DownloadStatusText.Text = success ? 
+                    (isUpdate ? "✅ Update" : "✅ Version") + " installed successfully!" 
+                    : "❌ Failed";
         }
 
         private void btnOpenGithub_Click(object sender, RoutedEventArgs e) {
@@ -319,7 +327,20 @@ namespace UEVR {
         }
 
         private async void m_checkUpdatesBtn_Click(object sender, RoutedEventArgs e) {
-            await window.CheckForNightlyUpdates();
+            if (m_ignoreUpdatesCheckbox.IsChecked == true) {
+                return;
+            }
+            if (_updater.IsUpdateAvailable(
+                    _updater.GetCurrentRevision(),
+                    await _updater.GetReleasesAsync(),
+                    out GitAPI.GitHubResponseObject? Update)) {
+                if (Update is not null) {
+                    var allow = await window.AllowUpdateOnce();
+                    if (allow) {
+                        await _updater.DownloadAndExtractAsync(Update);
+                    }
+                }
+            }
         }
 
         private void m_resetAllBtn_Click(object sender, RoutedEventArgs e) {

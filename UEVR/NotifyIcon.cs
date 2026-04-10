@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using static UEVR.NotifyIcon;
 
 /*
     Copyright lobotomyx 2025-2026
@@ -37,7 +38,7 @@ namespace UEVR
 
         // Define the NOTIFYICONIDENTIFIER structure
         [StructLayout(LayoutKind.Sequential)]
-        public struct NOTIFYICONIDENTIFIER
+        public struct NotifyIconIdentifier
         {
             public int cbSize;
             public IntPtr hWnd; // Can be IntPtr.Zero if using guidItem
@@ -48,7 +49,7 @@ namespace UEVR
 
         [DllImport("shell32.dll", SetLastError = true)]
         public static extern int Shell_NotifyIconGetRect(
-            [In] ref NOTIFYICONIDENTIFIER identifier,
+            [In] ref NotifyIconIdentifier identifier,
             [Out] out RECT iconLocation);
 
 
@@ -98,10 +99,9 @@ namespace UEVR
         private MainWindow? _window;
         private NotifyIconData _notifyIconData;
         private static TrayContextMenu? ctxMenu;
-        private NOTIFYICONIDENTIFIER _notifyIconIdentifier;
+        private NotifyIconIdentifier  _notifyIconIdentifier;
         private string defaultTip = "UEVR Injector";
         private IntPtr defaultIcon;
-        //public readonly Guid guid = new("2382DAAC-4171-4BCF-8725-A88E928B0084");
         // store a few icons with string keys to switch states
         public Dictionary<string, IntPtr> IconDictionary = new Dictionary<string, IntPtr>();
 
@@ -182,11 +182,13 @@ namespace UEVR
                 uCallbackMessage = WM_TRAYICON,
                 hIcon = defaultIcon,
                 szTip = defaultTip,
-                guidItem = Guid.Empty
+                guidItem = Guid.Empty // note that if you specify a GUID here you must use it in the notifyiconidentifier... so better not to use at all
             };
-            _notifyIconIdentifier = new NOTIFYICONIDENTIFIER
+
+            // We will use this struct to identify our icon and locate the exact position on screen later
+            _notifyIconIdentifier = new NotifyIconIdentifier
             {
-                cbSize = Marshal.SizeOf(typeof(NOTIFYICONIDENTIFIER)),
+                cbSize = Marshal.SizeOf(typeof(NotifyIconIdentifier)),
                 hWnd = _hWnd,
                 uID = 1,
                 guidItem = Guid.Empty
@@ -202,7 +204,8 @@ namespace UEVR
 
         public void ShowConnectionOptions()
         {
-            Shell_NotifyIconGetRect(ref _notifyIconIdentifier, out RECT iconLocation);
+
+   
             if (_window is null)
             {
                 var mw = Application.Current.MainWindow;
@@ -212,8 +215,8 @@ namespace UEVR
                 }
                 else
                 {
-                    // If mainwindow has crashed without crashing this thread somehow we do need to make sure to remove the icon
-                    // It actually ends up as a handle owned by a random explorer process so it will just stay there if we don't clean it up
+                    // If mainwindow has crashed without crashing this thread we need to remove the icon
+                    // It actually ends up as a handle owned by a random explorer process so it will stay there if we don't clean it up
                     this.RemoveTrayIcon();
                     Application.Current.Shutdown();
                 }
@@ -227,16 +230,17 @@ namespace UEVR
                     ctxMenu = null;
                 }
                 ctxMenu = new TrayContextMenu(_window, _window.IsConnected(), _window.IsInjectionPaused());
+                // use our identifer struct to fill a RECT with the location of the icon
+                Shell_NotifyIconGetRect(ref _notifyIconIdentifier, out RECT iconLocation);
 
-
-                if (iconLocation.left == iconLocation.right && iconLocation.top == iconLocation.bottom)
-                {
+                // if our identifier struct vanished then just use mouse position and pray a little bit
+                if (iconLocation.left == iconLocation.right && iconLocation.top == iconLocation.bottom) {
                     Win32Point mousePos = new Win32Point();
                     GetCursorPos(ref mousePos);
                     ctxMenu.ShowAtMouse(mousePos);
-                }
-                else
+                } else {
                     ctxMenu.ShowAtIcon(iconLocation);
+                }
 
                 // we need to know how many buttons are displayed to offset correctly, this is the main reason for this setup
                 ctxMenu.OffsetWindowPos();
@@ -244,24 +248,12 @@ namespace UEVR
             }
         }
 
-        // this is kind of here as a just in case thing I guess 
-        // because the context menu is set to always close on deactivation anyway
-        public void CloseTrayMenu()
-        {
-            if (ctxMenu is not null)
-            {
-                try { ctxMenu.Close(); } catch { }
-                ctxMenu = null;
-            }
-        }
 
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            Shell_NotifyIconGetRect(ref _notifyIconIdentifier, out RECT iconLocation);
             if (_window is not null)
             {
-                // Use a 64-bit safe conversion for lParam
                 int lParamInt = unchecked((int)lParam.ToInt64());
 
                 // On single click we activate and focus the window 
@@ -293,6 +285,7 @@ namespace UEVR
                         try { ctxMenu.Close(); } catch { }
                         ctxMenu = null;
                     }
+                    Shell_NotifyIconGetRect(ref _notifyIconIdentifier, out RECT iconLocation);
 
                     ctxMenu = new TrayContextMenu(_window, _window.IsConnected(), _window.IsInjectionPaused());
                     // if we somehow lost the handle we'll use the mouse cursor pos
@@ -329,11 +322,6 @@ namespace UEVR
             }
         }
 
-        public void GetIconPosition(out RECT position)
-        {
-            Shell_NotifyIconGetRect(ref _notifyIconIdentifier, out RECT iconLocation);
-            position = iconLocation;
-        }
 
         // Call without args to reset to default
         // this changes the text seen when hovering on the icon

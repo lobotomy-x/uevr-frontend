@@ -59,31 +59,26 @@
                             <CheckBox x:Name="m_autoInjectCheckbox" Content="Automatic Injection" 
                                       Margin="12,0,0,0" IsChecked="{Binding AutomaticInjection, Mode=TwoWay}" Padding="4,4,0,4"/>
                             <CheckBox x:Name="m_autoUpdateCheckbox" Content="Automatic Nightly Updates" 
-                            IsChecked="{Binding AutomaticNightlyUpdates, Mode=TwoWay}" Margin="12,0,0,0" 
-Padding="4,4,0,4"/>
-                            <CheckBox
-                                Content="Auto-inject new games" IsChecked="{Binding AutoInjectNewGames, Mode=TwoWay}" x:Name="m_autoInjectAlwaysCheckbox" Padding="4,4,0,4" Visibility="Collapsed" Margin="12,0,0,0" />
-
+                            IsChecked="{Binding AutomaticNightlyUpdates, Mode=TwoWay}" Margin="12,0,0,0" Padding="4,4,0,4"/>
                         </StackPanel>
-
                     </StackPanel>
                 </TabItem>
 
                 <TabItem Header="Updates" FontSize="13">
                     <StackPanel Margin="20,16,20,0" MinHeight="300" MaxHeight="330" Height="300">
-
                         <TextBlock Text="Version Selector" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,12" Width="300"/>
                         <TextBlock x:Name="DownloadStatusText" Text="Status: Ready" 
                             FontWeight="Medium" Margin="12,0,0,16" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                        <StackPanel Margin="0,0,0,8" Height="120">
-
+                        <StackPanel Margin="0,0,0,8" Height="127">
+                         
                             <TextBlock x:Name="CurrentVersion" Text="Current: Loading..." FontSize="13" 
-                                Foreground="{DynamicResource MaterialDesignBodyLight}" Width="250" Height="50" Margin="4,4,4,4" HorizontalAlignment="Center"/>
+                                Foreground="{DynamicResource MaterialDesignBodyLight}" Width="250" Height="36" Margin="4,4,4,4" HorizontalAlignment="Center"/>
                             <ComboBox x:Name="VersionDateCombo" Width="260" Height="40"
                                 DisplayMemberPath="Published_At"
                                 ItemStringFormat="{}{0:MMMM dd, yyyy}"
                                 SelectionChanged="VersionDateCombo_SelectionChanged" Padding="4,4,4,4" UseLayoutRounding="True" ScrollViewer.CanContentScroll="True" FontSize="12" Background="{DynamicResource MaterialDesignPaper}" BorderBrush="{DynamicResource MaterialDesignDarkForeground}" Foreground="{DynamicResource MaterialDesignBody}" Margin="0,0,0,1" VerticalContentAlignment="Stretch"/>
-
+                            <CheckBox x:Name="m_ignoreUpdatesCheckbox" Content="Ignore Updates" 
+                                      Margin="24,12,12,0" IsChecked="{Binding AutomaticInjection, Mode=TwoWay}" Padding="4,4,0,4" Visibility="Visible" IsEnabled="False"/>
 
                         </StackPanel>
                         <Button x:Name="btnSelectVersion" Content="Download &amp; Install Selected Version" 
